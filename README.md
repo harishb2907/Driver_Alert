@@ -1,2 +1,3 @@
-# Driver_Alert
-A project based on Driver Alertness Detection
+*Description*
+
+using raspberry pi 4, detecting fatigue of the driver by sleeping or yawning while driving and detecting the alcohol present in car using alcohol sensor. if the driver closes his eyes while driving, "Wake up" alert message should be displayed on the lcd screen connected to the raspberry pi 4 and alerts the driver using speaker connected to the raspberry pi 4, and if the driver yawns while driving, "Take some fresh air" alert message should be displayed on the lcd screen and alerts the driver using speaker and gradually vehicle should stop and the hazard lights starts blinking. If the alcohol is detected in the vehicle, "Alcohol detected" alert message should be displayed on the lcd screen and alerts the driver using speaker and gradually vehicle should stop and the hazard lights starts blinking.
