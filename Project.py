@@ -9,13 +9,14 @@ import time
 import dlib
 import cv2
 import os
-import wiringpi as wiringpi
-from time import sleep
+import RPi.GPIO as GPIO
+import time
+import smbus2
 import subprocess
 import threading
 
 #run both scripts
-drowsiness_process = subprocess.Popen(["python","drowsiness_yawn.py"])
+drowsiness_process = subprocess.Popen(["python","sleep.py"])
 alcohol_process = subprocess.Popen(["python","alcoholdet.py"])
 
 #wait for both processes to complete
@@ -23,7 +24,51 @@ drowsiness_process.wait()
 alcohol_process.wait()
 
 def detect_drowsiness():
+ I2C_ADDR=0x27
+ bus=smbus2.SMBus(1)
 
+ LCD_WIDTH=16
+ LCD_CHR=1
+ LCD_CMD=0
+
+ LCD_LINE_1= 0x80
+ LCD_LINE_2=0xC0
+
+ ENABLE=0b00000100
+ BACKLIGHT=0b00001000
+
+ def lcd_byte(bits, mode):
+    """ Send byte data to I2C LCD """
+    high_bits = mode | (bits & 0xF0) | BACKLIGHT
+    low_bits = mode | ((bits << 4) & 0xF0) | BACKLIGHT
+    bus.write_byte(I2C_ADDR, high_bits)
+    lcd_toggle_enable(high_bits)
+    bus.write_byte(I2C_ADDR, low_bits)
+    lcd_toggle_enable(low_bits)
+
+ def lcd_toggle_enable(bits):
+    """ Toggle enable pin for I2C LCD """
+    time.sleep(0.0005)
+    bus.write_byte(I2C_ADDR, (bits | ENABLE))
+    time.sleep(0.0005)
+    bus.write_byte(I2C_ADDR, (bits & ~ENABLE))
+    time.sleep(0.0005)
+
+ def lcd_init():
+    lcd_byte(0x33, LCD_CMD)
+    lcd_byte(0x32, LCD_CMD)
+    lcd_byte(0x06, LCD_CMD)
+    lcd_byte(0x0C, LCD_CMD)
+    lcd_byte(0x28, LCD_CMD)
+    lcd_byte(0x01, LCD_CMD)
+    time.sleep(0.005)
+    
+ def lcd_string(message, line):
+    message=message.ljust(LCD_WIDTH, " ")
+    lcd_byte(line, LCD_CMD)
+    for char in message:
+        lcd_byte(ord(char), LCD_CHR)
+        
  def alarm(msg):
     global alarm_status
     global alarm_status2
@@ -142,6 +187,7 @@ def detect_drowsiness():
                 if alarm_status == False:
                     alarm_status = True
                     t = Thread(target=alarm, args=('Wake up',))
+                    lcd_string("WAKE UP!",LCD_LINE_1)
                     t.deamon = True
                     t.start()
 
@@ -158,6 +204,7 @@ def detect_drowsiness():
                 if alarm_status2 == False and saying == False:
                     alarm_status2 = True
                     t = Thread(target=alarm, args=('Take some fresh air',))
+                    lcd_string("TAKE SOME FRESH AIR!",LCD_LINE_1)
                     t.deamon = True
                     t.start()
         else:
@@ -180,17 +227,77 @@ def detect_drowsiness():
 pass
 
 def detect_alcohol():
-	wiringpi.wiringPiSetupGpio()
-	wiringpi.pinMode(25, 0)
-	count=0
-	while(count<200000):
-		my_input=wiringpi.digitalRead(25)
-		if(my_input):
-			print("Not Detected !")
-		else:
-			print("Alcohol Detected")
-			count=count+1
-			sleep(1)
+ GPIO.setmode(GPIO.BCM)
+
+# Define the GPIO pin connected to MQ-3 digital output
+ ALCOHOL_SENSOR_PIN = 17
+ GPIO.setup(ALCOHOL_SENSOR_PIN, GPIO.IN)
+ I2C_ADDR=0x27
+ bus=smbus2.SMBus(1)
+
+ LCD_WIDTH=16
+ LCD_CHR=1
+ LCD_CMD=0
+
+ LCD_LINE_1= 0x80
+ LCD_LINE_2=0xC0
+
+ ENABLE=0b00000100
+ BACKLIGHT=0b00001000
+
+ def lcd_byte(bits, mode):
+    """ Send byte data to I2C LCD """
+    high_bits = mode | (bits & 0xF0) | BACKLIGHT
+    low_bits = mode | ((bits << 4) & 0xF0) | BACKLIGHT
+    bus.write_byte(I2C_ADDR, high_bits)
+    lcd_toggle_enable(high_bits)
+    bus.write_byte(I2C_ADDR, low_bits)
+    lcd_toggle_enable(low_bits)
+
+ def lcd_toggle_enable(bits):
+    """ Toggle enable pin for I2C LCD """
+    time.sleep(0.0005)
+    bus.write_byte(I2C_ADDR, (bits | ENABLE))
+    time.sleep(0.0005)
+    bus.write_byte(I2C_ADDR, (bits & ~ENABLE))
+    time.sleep(0.0005)
+
+ def lcd_init():
+    lcd_byte(0x33, LCD_CMD)
+    lcd_byte(0x32, LCD_CMD)
+    lcd_byte(0x06, LCD_CMD)
+    lcd_byte(0x0C, LCD_CMD)
+    lcd_byte(0x28, LCD_CMD)
+    lcd_byte(0x01, LCD_CMD)
+    time.sleep(0.005)
+    
+ def lcd_string(message, line):
+    message=message.ljust(LCD_WIDTH, " ")
+    lcd_byte(line, LCD_CMD)
+    for char in message:
+        lcd_byte(ord(char), LCD_CHR)
+
+
+ def speak_alert():
+    """ Function to generate an audio alert using text-to-speech (TTS) """
+    os.system('espeak "Warning! Alcohol detected!"')
+
+ try:
+
+    while True:
+        if GPIO.input(ALCOHOL_SENSOR_PIN) == 1:
+            print("No alcohol detected.")
+        else:
+            print("Alcohol detected!")
+            #lcd_string("ALCOHOL ALERT!", LCD_LINE_1)
+			#lcd_string("Take Action!", LCD_LINE_2)
+            speak_alert()
+
+        time.sleep(1)  # Delay between readings
+
+ except KeyboardInterrupt:
+    print("Exiting...")
+    GPIO.cleanup()
 pass
 
 #create threads
