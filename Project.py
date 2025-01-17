@@ -24,6 +24,13 @@ drowsiness_process.wait()
 alcohol_process.wait()
 
 def detect_drowsiness():
+ 
+ RELAY_PIN =18
+
+ GPIO.setmode(GPIO.BCM)
+ GPIO.setup(RELAY_PIN, GPIO.OUT)
+ GPIO.output(RELAY_PIN, GPIO.LOW)
+ 
  I2C_ADDR=0x27
  bus=smbus2.SMBus(1)
 
@@ -189,6 +196,7 @@ def detect_drowsiness():
                     t = Thread(target=alarm, args=('Wake up',))
                     lcd_string("WAKE UP!",LCD_LINE_1)
                     time.sleep(2)
+                    GPIO.output(RELAY_PIN, GPIO.LOW)
                     t.deamon = True
                     t.start()
 
@@ -198,6 +206,7 @@ def detect_drowsiness():
         else:
             COUNTER = 0
             alarm_status = False
+            GPIO.output(RELAY_PIN, GPIO.HIGH)
             lcd_string("",LCD_LINE_1)
             lcd_string("",LCD_LINE_2)
 
@@ -209,10 +218,12 @@ def detect_drowsiness():
                     t = Thread(target=alarm, args=('Take some fresh air',))
                     lcd_string("TAKE FRESH AIR!",LCD_LINE_1)
                     time.sleep(2)
+                    GPIO.output(RELAY_PIN, GPIO.LOW)
                     t.deamon = True
                     t.start()
         else:
             alarm_status2 = False
+            GPIO.output(RELAY_PIN, GPIO.HIGH)
             lcd_string("",LCD_LINE_1)
             lcd_string("",LCD_LINE_2)
 
@@ -253,7 +264,7 @@ def detect_alcohol():
         else:
             print("Alcohol detected!")
             #lcd_string("ALCOHOL ALERT!", LCD_LINE_1)
-	    #lcd_string("Take Action!", LCD_LINE_2)
+			#lcd_string("Take Action!", LCD_LINE_2)
             speak_alert()
 
         time.sleep(1)  # Delay between readings
